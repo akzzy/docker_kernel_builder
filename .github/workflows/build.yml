@@ -6,7 +6,73 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
     steps:
+      - name: Print start
+        run: |
+          echo "Starting kernel build debug run: $(date -u)"
+
+      - name: Debug — download & inspect other-clang-url
+        env:
+          OTHER_CLANG_URL: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
+        run: |
+          set -euo pipefail
+          echo "Downloading OTHER_CLANG_URL: $OTHER_CLANG_URL"
+          mkdir -p /tmp/clang_debug
+          cd /tmp/clang_debug
+
+          # Download the tarball (curl with retries)
+          echo "Downloading to /tmp/clang_debug/clang.tar.gz ..."
+          curl -L --retry 5 --retry-delay 2 -o clang.tar.gz "$OTHER_CLANG_URL"
+
+          file clang.tar.gz || true
+          echo "Trying to extract (gzip or xz)..."
+          # Try gzip then xz then tar autodetect
+          if tar -tzf clang.tar.gz >/dev/null 2>&1; then
+            tar -xzf clang.tar.gz
+          elif tar -tJf clang.tar.gz >/dev/null 2>&1; then
+            tar -xJf clang.tar.gz
+          else
+            # fallback - let tar try autodetect
+            tar -xf clang.tar.gz || true
+          fi
+
+          echo "=== Top-level of /tmp/clang_debug ==="
+          ls -la /tmp/clang_debug | sed -n '1,200p' || true
+
+          echo "=== Recursively list 'bin' directories (up to depth 6) ==="
+          find /tmp/clang_debug -maxdepth 6 -type d -name bin -exec sh -c 'echo "---- {} ----"; ls -la "{}"' \; || true
+
+          echo "=== Find likely toolchain binaries (ld, lld, clang, aarch64*) ==="
+          find /tmp/clang_debug -maxdepth 6 -type f \( -iname 'ld*' -o -iname 'lld*' -o -iname 'clang' -o -iname 'aarch64*' -o -iname 'llvm-objcopy' -o -iname 'llvm-strip' \) -exec ls -la {} \; || true
+
+          echo "=== Try to detect 'binutils' presence summary ==="
+          if find /tmp/clang_debug -maxdepth 6 -type f -iname 'aarch64-linux-android-ld' | grep -q .; then
+            echo "FOUND aarch64-linux-android-ld"
+          elif find /tmp/clang_debug -maxdepth 6 -type f -iname 'ld' | grep -q .; then
+            echo "FOUND ld (generic)"
+          elif find /tmp/clang_debug -maxdepth 6 -type f -iname 'lld' | grep -q .; then
+            echo "FOUND lld (llvm linker)"
+          else
+            echo "NO obvious binutils/linkers found in the clang archive."
+          fi
+
+          echo "Debug download & inspect complete."
+
+      # (Optional) show free disk and environment for debugging
+      - name: Runner disk & environment snapshot
+        run: |
+          echo "Disk usage (df -h):"
+          df -h .
+          echo
+          echo "Free in /tmp (du -sh):"
+          du -sh /tmp || true
+          echo
+          echo "Environment summary (some vars):"
+          env | egrep 'HOME|GITHUB_|RUNNER_' || true
+
+      # Now run the action (unchanged)
       - name: Build kernel
         uses: dabao1955/kernel_build_action@main
         with:
