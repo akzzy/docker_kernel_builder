@@ -11,11 +11,11 @@ jobs:
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/AcmeUI-Devices/android_kernel_xiaomi_cas
-          kernel-branch: taffy
-          config: cas_defconfig
+          kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845
+          kernel-branch: 16.0-KSU-Next
+          config: beryllium_defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
-          android-version: 12
+          android-version: 16
           aosp-clang-version: r383902
