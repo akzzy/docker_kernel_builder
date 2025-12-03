@@ -5,22 +5,49 @@ on:
 
 jobs:
   build-kernel:
-    name: Build Kernel
+    name: Build Kernel (clang-r536225)
     runs-on: ubuntu-22.04
+    timeout-minutes: 1800
+
     steps:
-      - name: Build
+      # optional - show start time in logs
+      - name: Print start
+        run: echo "Starting kernel build: $(date -u)"
+
+      # Build using the action
+      - name: Build kernel (dabao1955 action)
         uses: dabao1955/kernel_build_action@main
         with:
+          # kernel source / branch / config (change if needed)
           kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
           kernel-branch: 16.0-KSU-Next
           config: beryllium_defconfig
           arch: arm64
+
+          # Important: disable AOSP toolchains so it won't try to fetch missing GCC
           aosp-gcc: false
-          aosp-clang: true
+          aosp-clang: false
+
+          # Use the exact AOSP clang r536225 tarball you provided
+          other-clang-url: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
+          # other-clang-branch: main    # only needed if other-clang-url is a git repo
+
+          # meta / speed / packaging
           android-version: 15
-          aosp-clang-version: r522817
-          ccache: true              # speed up repeated builds (clang only)
+          ccache: true
           anykernel3: true
-          anykernel3-url: https://github.com/someuser/AnyKernel3   # optional: change to your AnyKernel3 repo
-          release: true             # auto-publish release (needs access-token if private)
+          # anykernel3-url: https://github.com/youruser/AnyKernel3   # optional: set if you have a custom AnyKernel3
+          release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Optional: (uncomment + set expected sha256) verify the downloaded clang tarball for safety
+      # - name: Verify clang tarball SHA256 (optional)
+      #   if: always()
+      #   run: |
+      #     TAR="/home/runner/clangs/clang-r536225.tar.gz"   # path used by the action might differ; check logs
+      #     echo "expected-sha256-here  clang-r536225.tar.gz" > /tmp/expected.sha256
+      #     sha256sum -c /tmp/expected.sha256 || (echo "clang tarball checksum mismatch" ; exit 1)
+
+      - name: Print finished
+        if: always()
+        run: echo "Build job finished: $(date -u)"
