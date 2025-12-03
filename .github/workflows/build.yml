@@ -18,7 +18,6 @@ jobs:
           aosp-clang: true
           aosp-clang-version: r547379
           android-version: 12
-          ccache: true
           anykernel3: true
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
