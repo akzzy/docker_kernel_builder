@@ -7,7 +7,7 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Build kernel dockerpro
+      - name: Build kernel dockerlxc
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
@@ -17,6 +17,7 @@ jobs:
           aosp-gcc: true
           aosp-clang: true
           aosp-clang-version: r383902
+          lxc: true
           android-version: 12
           anykernel3: true
           release: true
