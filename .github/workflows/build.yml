@@ -17,7 +17,6 @@ jobs:
           aosp-gcc: true
           aosp-clang: true
           aosp-clang-version: r383902
-          lxc: true
           android-version: 12
           anykernel3: true
           release: true
