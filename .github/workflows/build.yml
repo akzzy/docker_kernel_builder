@@ -11,11 +11,16 @@ jobs:
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845
+          kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
           kernel-branch: 16.0-KSU-Next
           config: beryllium_defconfig
           arch: arm64
-          aosp-gcc: true
+          aosp-gcc: false
           aosp-clang: true
           android-version: 15
           aosp-clang-version: r522817
+          ccache: true              # speed up repeated builds (clang only)
+          anykernel3: true
+          anykernel3-url: https://github.com/someuser/AnyKernel3   # optional: change to your AnyKernel3 repo
+          release: true             # auto-publish release (needs access-token if private)
+          access-token: ${{ secrets.GITHUB_TOKEN }}
