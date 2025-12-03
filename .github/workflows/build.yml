@@ -4,10 +4,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  check:
+    name: Workflow sanity check
+    runs-on: ubuntu-22.04
+    outputs:
+      ok: ${{ steps.echo-out.outputs.time }}
+    steps:
+      - name: Print quick sanity
+        id: echo-out
+        run: |
+          echo "workflow sanity OK: $(date -u)"
+          echo "::set-output name=time::$(date -u)"
+
   build-kernel:
+    name: Build kernel (prepare clang + build)
+    needs: check
     runs-on: ubuntu-22.04
     timeout-minutes: 180
-
     steps:
       - name: Print start
         run: echo "Start build: $(date -u)"
@@ -34,7 +47,7 @@ jobs:
           tar -xf clang.tar.gz
 
           # find the extracted root (there's usually a top-level dir)
-          EXTRACT_DIR=$(find . -maxdepth 2 -type d -not -path . | sed -n '1p')
+          EXTRACT_DIR=$(find . -maxdepth 2 -type d -not -path . | sed -n '1p' || true)
           if [ -z "$EXTRACT_DIR" ]; then
             # fallback: assume files are at current dir
             EXTRACT_DIR="."
@@ -42,7 +55,7 @@ jobs:
           echo "extracted dir: $EXTRACT_DIR"
 
           # copy whole tree into /home/runner/clang
-          cp -a "$EXTRACT_DIR"/. /home/runner/clang/
+          cp -a "$EXTRACT_DIR"/. /home/runner/clang/ || true
 
           # ensure bin exists
           mkdir -p /home/runner/clang/bin
@@ -57,7 +70,6 @@ jobs:
             ln -sf lld aarch64-linux-android-ld
             ln -sf lld aarch64-linux-gnu-ld
             ln -sf lld arm-linux-androideabi-ld
-            # other helpful names
             ln -sf lld ld64.lld || true
           else
             echo "Warning: lld not found in extracted clang bin. Listing /home/runner/clang/bin:"
@@ -75,10 +87,10 @@ jobs:
 
       - name: Show toolchain quick check
         run: |
-          echo "which clang: $(which clang || true)"
+          echo "which clang: $(command -v clang || true)"
           echo "clang --version:"
           clang --version | sed -n '1,3p' || true
-          echo "which ld: $(which ld || true)"
+          echo "which ld: $(command -v ld || true)"
           echo "ld --version 2>/dev/null | sed -n '1,2p' || true"
           echo "ls /home/runner/clang/bin | sed -n '1,200p'"
 
