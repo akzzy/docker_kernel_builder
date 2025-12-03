@@ -10,70 +10,79 @@ jobs:
 
     steps:
       - name: Print start
-        run: |
-          echo "Starting kernel build debug run: $(date -u)"
+        run: echo "Start build: $(date -u)"
 
-      - name: Debug — download & inspect other-clang-url
+      - name: Prepare clang (extract + create binutils symlinks)
         env:
           OTHER_CLANG_URL: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
         run: |
           set -euo pipefail
-          echo "Downloading OTHER_CLANG_URL: $OTHER_CLANG_URL"
-          mkdir -p /tmp/clang_debug
-          cd /tmp/clang_debug
+          echo "Preparing clang toolchain in /home/runner/clang ..."
 
-          # Download the tarball (curl with retries)
-          echo "Downloading to /tmp/clang_debug/clang.tar.gz ..."
-          curl -L --retry 5 --retry-delay 2 -o clang.tar.gz "$OTHER_CLANG_URL"
+          # make directories
+          rm -rf /home/runner/clang
+          mkdir -p /home/runner/clang
+          mkdir -p /home/runner/clang_tmp
+          cd /home/runner/clang_tmp
 
-          file clang.tar.gz || true
-          echo "Trying to extract (gzip or xz)..."
-          # Try gzip then xz then tar autodetect
-          if tar -tzf clang.tar.gz >/dev/null 2>&1; then
-            tar -xzf clang.tar.gz
-          elif tar -tJf clang.tar.gz >/dev/null 2>&1; then
-            tar -xJf clang.tar.gz
+          # download clang tarball (same url you used)
+          echo "Downloading $OTHER_CLANG_URL ..."
+          curl -L --retry 5 -o clang.tar.gz "$OTHER_CLANG_URL"
+
+          # extract (tar autodetect)
+          echo "Extracting clang tarball..."
+          tar -xf clang.tar.gz
+
+          # find the extracted root (there's usually a top-level dir)
+          EXTRACT_DIR=$(find . -maxdepth 2 -type d -not -path . | sed -n '1p')
+          if [ -z "$EXTRACT_DIR" ]; then
+            # fallback: assume files are at current dir
+            EXTRACT_DIR="."
+          fi
+          echo "extracted dir: $EXTRACT_DIR"
+
+          # copy whole tree into /home/runner/clang
+          cp -a "$EXTRACT_DIR"/. /home/runner/clang/
+
+          # ensure bin exists
+          mkdir -p /home/runner/clang/bin
+
+          # if lld exists, create cross-linker symlinks pointing to lld
+          if [ -x /home/runner/clang/bin/lld ]; then
+            echo "Found lld at /home/runner/clang/bin/lld; creating symlinks..."
+            cd /home/runner/clang/bin
+            # create common linker names the action may expect
+            ln -sf lld ld
+            ln -sf lld ld.lld
+            ln -sf lld aarch64-linux-android-ld
+            ln -sf lld aarch64-linux-gnu-ld
+            ln -sf lld arm-linux-androideabi-ld
+            # other helpful names
+            ln -sf lld ld64.lld || true
           else
-            # fallback - let tar try autodetect
-            tar -xf clang.tar.gz || true
+            echo "Warning: lld not found in extracted clang bin. Listing /home/runner/clang/bin:"
+            ls -la /home/runner/clang/bin || true
+            exit 1
           fi
 
-          echo "=== Top-level of /tmp/clang_debug ==="
-          ls -la /tmp/clang_debug | sed -n '1,200p' || true
+          # Make sure tools are executable
+          chmod -R a+rx /home/runner/clang/bin || true
 
-          echo "=== Recursively list 'bin' directories (up to depth 6) ==="
-          find /tmp/clang_debug -maxdepth 6 -type d -name bin -exec sh -c 'echo "---- {} ----"; ls -la "{}"' \; || true
+          # expose to PATH for later steps
+          echo "PATH=/home/runner/clang/bin:$PATH" >> $GITHUB_ENV
+          echo "Prepared /home/runner/clang with symlinks:"
+          ls -la /home/runner/clang/bin | sed -n '1,200p'
 
-          echo "=== Find likely toolchain binaries (ld, lld, clang, aarch64*) ==="
-          find /tmp/clang_debug -maxdepth 6 -type f \( -iname 'ld*' -o -iname 'lld*' -o -iname 'clang' -o -iname 'aarch64*' -o -iname 'llvm-objcopy' -o -iname 'llvm-strip' \) -exec ls -la {} \; || true
-
-          echo "=== Try to detect 'binutils' presence summary ==="
-          if find /tmp/clang_debug -maxdepth 6 -type f -iname 'aarch64-linux-android-ld' | grep -q .; then
-            echo "FOUND aarch64-linux-android-ld"
-          elif find /tmp/clang_debug -maxdepth 6 -type f -iname 'ld' | grep -q .; then
-            echo "FOUND ld (generic)"
-          elif find /tmp/clang_debug -maxdepth 6 -type f -iname 'lld' | grep -q .; then
-            echo "FOUND lld (llvm linker)"
-          else
-            echo "NO obvious binutils/linkers found in the clang archive."
-          fi
-
-          echo "Debug download & inspect complete."
-
-      # (Optional) show free disk and environment for debugging
-      - name: Runner disk & environment snapshot
+      - name: Show toolchain quick check
         run: |
-          echo "Disk usage (df -h):"
-          df -h .
-          echo
-          echo "Free in /tmp (du -sh):"
-          du -sh /tmp || true
-          echo
-          echo "Environment summary (some vars):"
-          env | egrep 'HOME|GITHUB_|RUNNER_' || true
+          echo "which clang: $(which clang || true)"
+          echo "clang --version:"
+          clang --version | sed -n '1,3p' || true
+          echo "which ld: $(which ld || true)"
+          echo "ld --version 2>/dev/null | sed -n '1,2p' || true"
+          echo "ls /home/runner/clang/bin | sed -n '1,200p'"
 
-      # Now run the action (unchanged)
-      - name: Build kernel
+      - name: Build kernel (dabao1955 action)
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
@@ -81,9 +90,11 @@ jobs:
           config: beryllium_defconfig
           arch: arm64
 
+          # keep AOSP toolchains disabled (we prepared clang locally)
           aosp-gcc: false
           aosp-clang: false
 
+          # keep the original other-clang-url for clarity (action may ignore since we prepared /home/runner/clang)
           other-clang-url: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
 
           android-version: 15
