@@ -7,7 +7,7 @@ jobs:
   build-kernel:
     runs-on: ubuntu-22.04
     steps:
-      - name: Build kernel dockerlxc
+      - name: Build kernel dockerdisable
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
