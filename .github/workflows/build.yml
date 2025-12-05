@@ -11,7 +11,7 @@ jobs:
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
-          kernel-branch: main
+          kernel-branch: 16.0-KSU-Next
           config: beryllium_defconfig
           arch: arm64
           aosp-gcc: true
