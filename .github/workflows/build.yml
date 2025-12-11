@@ -10,9 +10,9 @@ jobs:
       - name: Build kernel dockerlxcfinalpatch
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/akzzy/android_kernel_xiaomi_sdm845_docker
-          kernel-branch: 16.0-KSU-Next
-          config: beryllium_defconfig
+          kernel-url: https://github.com/duckyduckG/android_kernel_xiaomi_sdm845_419
+          kernel-branch: lineage-23.0_xiaomi
+          config: defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
