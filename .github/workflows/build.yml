@@ -12,7 +12,7 @@ jobs:
         with:
           kernel-url: https://github.com/duckyduckG/android_kernel_xiaomi_sdm845_419
           kernel-branch: lineage-23.0_xiaomi
-          config: defconfig
+          config: vendor/sdm845-perf_defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
