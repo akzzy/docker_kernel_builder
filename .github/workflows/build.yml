@@ -20,5 +20,4 @@ jobs:
           android-version: 12
           anykernel3: true
           release: true
-          lxc: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
