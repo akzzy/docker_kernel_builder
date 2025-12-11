@@ -21,5 +21,4 @@ jobs:
           anykernel3: true
           release: true
           lxc: true
-          lxc-patch: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
